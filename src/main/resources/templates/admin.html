@@ -5,13 +5,111 @@
     <meta charset="UTF-8">
     <title>Admin Panel</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .top-bar {
+            width: 100%;
+            height: 50px;
+            background-color: darkslategrey;
+            color: white; /* Белый текст */
+            padding: 10px 20px; /* Отступы */
+            position: fixed; /* Фиксированное положение */
+            top: 0; /* Привязка к верхнему краю */
+            left: 0; /* Привязка к левому краю */
+            z-index: 1000; /* Убедитесь, что строка поверх других элементов */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Тень для эффекта "поднятия" */
+        }
+
+        .user-info {
+            display: flex;
+            justify-content: flex-end; /* Выравнивание по правому краю */
+            gap: 30px;
+            align-items: center;
+            height: 100%;
+
+        }
+        .sidebar {
+            height: 100%;
+            width: 200px;
+            position: fixed;
+            top: 70px;
+            left: 0;
+            background-color: #f8f9fa;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+        .sidebar a {
+            display: block;
+            padding: 10px;
+            text-decoration: none;
+            color: #007bff;
+            border-radius: 4px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .sidebar a:hover {
+            background-color: #007bff;
+            color: white;
+        }
+        .sidebar a.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .content {
+            margin-left: 220px;
+            padding: 20px;
+            margin-top: 70px;
+        }
+        .table-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+         .editable-field {
+             background-color: #81c784 !important; /* Светло-серый фон */
+             border: 1px solid #ced4da !important; /* Серая рамка */
+             border-radius: 4px !important; /* Закругленные углы */
+             padding: 8px !important; /* Отступы внутри поля */
+         }
+        .editable-field:focus {
+            background-color: #e9ecef !important; /* Темнее при фокусе */
+            border-color: #80bdff !important; /* Синяя рамка при фокусе */
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important; /* Тень при фокусе */
+        }
+        .id-field {
+            background-color: pink; /* Розовый фон */
+            border: 1px solid #ff69b4; /* Розовая рамка */
+            color: #8b0000; /* Темно-красный текст */
+            border-radius: 4px; /* Закругленные углы */
+            padding: 8px; /* Отступы внутри поля */
+        }
+        .delete-confirmation-text {
+            color: red; /* Красный цвет */
+            font-weight: bold; /* Жирное начертание */
+        }
+    </style>
 </head>
 <body>
-<div class="container mt-5">
-    <h2 class="text-center">Admin Panel</h2>
+<div class="top-bar">
+    <div class="user-info">
+        <div class="user-info" th:if="${username != null}">
+            <span th:text="${username}"></span>
+            <span th:each="role : ${roles}" th:text="${role.authority} + ' '"></span>
+        </div>
+    </div>
+</div>
+<div class="sidebar">
+    <a href="/admin">Admin</a>
+    <a href="/user">User</a>
+</div>
+<div class="content">
+    <h2 class="text-left">Admin Panel</h2>
     <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
     <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
-    <a href="/admin/new" class="btn btn-success mb-3">Add New User</a>
+    <div class="table-title">
+        <span>All users</span>
+        <a href="/admin/new" class="btn btn-success">Add New User</a>
+    </div>
     <table class="table table-bordered">
         <thead>
         <tr>
@@ -29,20 +127,131 @@
                 <span th:each="role : ${user.roles}" th:text="${role.name} + ' '"></span>
             </td>
             <td>
-                <a th:href="@{/admin/edit(id=${user.id})}" class="btn btn-warning btn-sm">Edit</a>
-                <form th:action="@{/admin/delete}" method="post" style="display: inline;">
-                    <input type="hidden" name="id" th:value="${user.id}">
-                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                </form>
+                <a href="#" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editUserModal"
+                   th:onclick="|loadEditForm(${user.id})|">Edit</a>
+                <a href="#" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteUserModal"
+                   th:onclick="|loadDeleteForm(${user.id})|">Delete</a>
             </td>
         </tr>
         </tbody>
     </table>
     <form th:action="@{/logout}" method="post" style="display: inline;">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-        <button type="submit" class="btn btn-danger">Logout</button>
+        <button type="submit" class="btn btn-secondary">Logout</button>
     </form>
 </div>
+
+<!-- Модальное окно для редактирования пользователя -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editUserModalLabel">Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Форма редактирования -->
+                <form th:action="@{/admin/update}" method="post" id="editUserForm">
+                    <input type="hidden" name="id" id="editUserId" />
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+                    <div class="mb-3">
+                        <label for="editUserIdDisplay" class="form-label">ID</label>
+                        <input type="text" class="form-control id-field" id="editUserIdDisplay" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editUsername" class="form-label">Username</label>
+                        <input type="text" class="form-control editable-field" id="editUsername" name="username" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editPassword" class="form-label">Password</label>
+                        <input type="password" class="form-control editable-field" id="editPassword" name="password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editRoles" class="form-label">Roles</label>
+                        <select class="form-select editable-field" id="editRoles" name="roleIds" multiple>
+                            <option th:each="role : ${allRoles}" th:value="${role.id}" th:text="${role.name}"></option>
+                        </select>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Edit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Модальное окно для удаления пользователя -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteUserModalLabel">Delete User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="delete-confirmation-text">Are you sure you want to delete this user?</p>
+                <form th:action="@{/admin/delete}" method="post" id="deleteUserForm">
+                    <input type="hidden" name="id" id="deleteUserId" />
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                    <!-- Поле с ID (только для чтения) -->
+                    <div class="mb-3">
+                        <label for="deleteUserIdDisplay" class="form-label">ID</label>
+                        <input type="text" class="form-control id-field" id="deleteUserIdDisplay" readonly>
+                    </div>
+
+                    <!-- Поле для отображения username -->
+                    <div class="mb-3">
+                        <label for="deleteUsername" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="deleteUsername" readonly>
+                    </div>
+
+                    <!-- Поле для отображения ролей -->
+                    <div class="mb-3">
+                        <label for="deleteRoles" class="form-label">Roles</label>
+                        <select class="form-select" id="deleteRoles" multiple disabled>
+                            <option th:each="role : ${allRoles}" th:value="${role.id}" th:text="${role.name}"></option>
+                        </select>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Подключение Bootstrap JS и зависимости -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+
+<!-- JavaScript для загрузки данных в модальное окно -->
+<script>
+    function loadEditForm(userId) {
+        fetch(`/admin/edit?id=${userId}`)
+            .then(response => response.json())
+            .then(user => {
+                document.getElementById('editUserId').value = user.id;
+                document.getElementById('editUserIdDisplay').value = user.id;
+                document.getElementById('editUsername').value = user.username;
+                document.getElementById('editPassword').value = ''; // Пароль не показываем
+
+                // Устанавливаем выбранные роли
+                const roleSelect = document.getElementById('editRoles');
+                Array.from(roleSelect.options).forEach(option => {
+                    option.selected = user.roles.some(role => role.id == option.value);
+                });
+            })
+            .catch(error => console.error('Error loading user data:', error));
+    }
+    function loadDeleteForm(userId) {
+        document.getElementById('deleteUserId').value = userId;
+    }
+</script>
 </body>
 </html>

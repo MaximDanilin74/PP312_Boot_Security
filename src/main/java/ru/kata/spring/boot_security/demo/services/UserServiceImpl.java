@@ -1,6 +1,7 @@
 package ru.kata.spring.boot_security.demo.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,21 +30,21 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public User getUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id:" + id));
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public User getUserByUsername(String username) {
         return userRepository.findByUsernameWithRoles(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with username:" + username));
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
@@ -73,8 +74,10 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new IllegalStateException("User not found"));
 
         existingUser.setUsername(user.getUsername());
-        existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
 
+        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+            existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
         if (roleIds != null && !roleIds.isEmpty()) {
             Set<Role> roles = roleRepository.findAllById(roleIds).stream()
                     .collect(Collectors.toSet());
@@ -89,4 +92,18 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByUsernameWithRoles(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with username:" + username));
         }
+
+    @Override
+    public User findByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
+
+
+    }
+
+    @Override
+    public User findById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+    }
 }
